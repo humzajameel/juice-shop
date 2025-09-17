@@ -662,8 +662,18 @@ restoreOverwrittenFilesWithOriginals().then(() => {
 
   /* File Serving */
   app.get('/the/devs/are/so/funny/they/hid/an/easter/egg/within/the/easter/egg', serveEasterEgg())
-  app.get('/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc/to/us', servePremiumContent())
-  app.get('/we/may/also/instruct/you/to/refuse/all/reasonably/necessary/responsibility', servePrivacyPolicyProof())
+  app.get('/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc_to_us', servePremiumContent())
+  app.get('/we/may/also/instruct/you_to/refuse/all/reasonably/necessary/responsibility', servePrivacyPolicyProof())
+
+  // Serve legal.md from /legal.md without exposing the /ftp path
+  app.get('/legal.md', (req: Request, res: Response) => {
+    const legalPath = path.resolve('ftp', 'legal.md')
+    res.sendFile(legalPath, (err?: any) => {
+      if (err) {
+        res.status(err.status || 404).send('Not found')
+      }
+    })
+  })
 
   /* Route for dataerasure page */
   app.use('/dataerasure', dataErasure)
