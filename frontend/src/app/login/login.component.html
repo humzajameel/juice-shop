@@ -21,10 +21,21 @@
             [formControl]="emailControl"
             (focus)="this.error=null"
             matInput placeholder=""
+            type="email"
+            inputmode="email"
+            autocomplete="email"
+            autocapitalize="off"
+            spellcheck="false"
+            (keydown)="blockInvalidEmailChars($event)"
+            (input)="sanitizeEmail($event)"
+            (paste)="handleEmailPaste($event)"
             aria-label="Text field for the login email"
           >
-          @if (emailControl.invalid) {
-          <mat-error translate>MANDATORY_EMAIL</mat-error>
+          @if (emailControl.invalid && emailControl.errors?.['required']) {
+            <mat-error translate>MANDATORY_EMAIL</mat-error>
+          }
+          @if (emailControl.invalid && (emailControl.errors?.['email'] || emailControl.errors?.['pattern'])) {
+            <mat-error translate>INVALID_EMAIL</mat-error>
           }
         </mat-form-field>
 
@@ -57,7 +68,7 @@
         <button
           type="submit"
           id="loginButton"
-          [disabled]="!emailControl.value||!passwordControl.value"
+          [disabled]="emailControl.invalid || passwordControl.invalid"
           mat-raised-button
           color="primary"
           (click)="login()"

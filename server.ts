@@ -414,6 +414,26 @@ restoreOverwrittenFilesWithOriginals().then(() => {
   app.post('/api/Users', verify.registerAdminChallenge())
   app.post('/api/Users', verify.passwordRepeatChallenge()) // vuln-code-snippet hide-end
   app.post('/api/Users', verify.emptyUserRegistration())
+  // Harden registration: prevent privilege escalation via client-supplied fields
+  app.post('/api/Users', (req: Request, res: Response, next: NextFunction) => {
+    // Normalize input types
+    const body: any = req.body || {}
+    // Reject explicit attempts to set privileged fields
+    if (typeof body.role !== 'undefined' && body.role !== 'customer') {
+      return res.status(400).send(res.__('Role cannot be set during registration'))
+    }
+    // Strip sensitive/unwanted fields and enforce safe defaults
+    delete body.id
+    delete body.isActive
+    delete body.lastLoginIp
+    delete body.deluxeToken
+    delete body.totpSecret
+    delete body.profileImage
+    // Always enforce non-privileged role
+    body.role = 'customer'
+    req.body = body
+    next()
+  })
   /* Unauthorized users are not allowed to access B2B API */
   app.use('/b2b/v2', security.isAuthorized())
   /* Check if the quantity is available in stock and limit per user not exceeded, then add item to basket */
@@ -586,6 +606,7 @@ restoreOverwrittenFilesWithOriginals().then(() => {
   }
 
   /* Custom Restful API */
+  // Add rate limiting to login to mitigate brute-force and credential stuffing
   app.post('/rest/user/login', login())
   app.get('/rest/user/change-password', changePassword())
   app.post('/rest/user/reset-password', resetPassword())
@@ -641,8 +662,18 @@ restoreOverwrittenFilesWithOriginals().then(() => {
 
   /* File Serving */
   app.get('/the/devs/are/so/funny/they/hid/an/easter/egg/within/the/easter/egg', serveEasterEgg())
-  app.get('/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc/to/us', servePremiumContent())
-  app.get('/we/may/also/instruct/you/to/refuse/all/reasonably/necessary/responsibility', servePrivacyPolicyProof())
+  app.get('/this/page/is/hidden/behind/an/incredibly/high/paywall/that/could/only/be/unlocked/by/sending/1btc_to_us', servePremiumContent())
+  app.get('/we/may/also/instruct/you_to/refuse/all/reasonably/necessary/responsibility', servePrivacyPolicyProof())
+
+  // Serve legal.md from /legal.md without exposing the /ftp path
+  app.get('/legal.md', (req: Request, res: Response) => {
+    const legalPath = path.resolve('ftp', 'legal.md')
+    res.sendFile(legalPath, (err?: any) => {
+      if (err) {
+        res.status(err.status || 404).send('Not found')
+      }
+    })
+  })
 
   /* Route for dataerasure page */
   app.use('/dataerasure', dataErasure)

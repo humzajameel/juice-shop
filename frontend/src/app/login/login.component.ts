@@ -37,7 +37,12 @@ const oauthProviderUrl = 'https://accounts.google.com/o/oauth2/v2/auth'
 })
 
 export class LoginComponent implements OnInit {
-  public emailControl = new UntypedFormControl('', [Validators.required])
+  public emailControl = new UntypedFormControl('', [
+    Validators.required,
+    Validators.email,
+    // Disallow spaces and quotes, enforce simple local@domain.tld structure
+    Validators.pattern(/^[^\s'\"]+@[^\s'\"]+\.[^\s'\"]+$/)
+  ])
 
   public passwordControl = new UntypedFormControl('', [Validators.required, Validators.minLength(1)])
 
@@ -84,9 +89,52 @@ export class LoginComponent implements OnInit {
     this.formSubmitService.attachEnterKeyHandler('login-form', 'loginButton', () => { this.login() })
   }
 
+  // Prevent entering invalid characters into email field: space, single-quote, double-quote
+  blockInvalidEmailChars (event: KeyboardEvent) {
+    const invalid = ["'", '"', ' ']
+    if (invalid.includes(event.key)) {
+      event.preventDefault()
+    }
+  }
+
+  // Sanitize email input on any change (covers typing, autofill, some IME cases)
+  sanitizeEmail (event: Event) {
+    const inputEl = event.target as HTMLInputElement
+    if (!inputEl) return
+    const raw = inputEl.value ?? ''
+    const cleaned = raw.replace(/[\s'\"]/g, '')
+    if (cleaned !== raw) {
+      inputEl.value = cleaned
+      this.emailControl.setValue(cleaned)
+      this.emailControl.updateValueAndValidity({ emitEvent: false })
+    }
+  }
+
+  // Handle paste to remove invalid characters before they enter the control
+  handleEmailPaste (event: ClipboardEvent) {
+    if (!event.clipboardData) return
+    const pasted = event.clipboardData.getData('text') ?? ''
+    const cleaned = pasted.replace(/[\s'\"]/g, '')
+    if (cleaned !== pasted) {
+      event.preventDefault()
+      const inputEl = event.target as HTMLInputElement
+      if (!inputEl) return
+      const start = inputEl.selectionStart ?? inputEl.value.length
+      const end = inputEl.selectionEnd ?? inputEl.value.length
+      const prefix = inputEl.value.substring(0, start)
+      const suffix = inputEl.value.substring(end)
+      const next = `${prefix}${cleaned}${suffix}`
+      inputEl.value = next
+      const caret = (start + cleaned.length)
+      inputEl.setSelectionRange(caret, caret)
+      this.emailControl.setValue(next)
+      this.emailControl.updateValueAndValidity({ emitEvent: false })
+    }
+  }
+
   login () {
     this.user = {}
-    this.user.email = this.emailControl.value
+    this.user.email = (this.emailControl.value ?? '').trim()
     this.user.password = this.passwordControl.value
     this.userService.login(this.user).subscribe({
       next: (authentication: any) => {

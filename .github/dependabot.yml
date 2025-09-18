@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      # How often to check for updates: daily, weekly, or monthly
+      interval: weekly
+      # Optional: pick a consistent day/time to reduce PR noise
+      day: monday
+      time: "04:00"
+      timezone: UTC
+    # Limit the number of open Dependabot PRs at once
+    open-pull-requests-limit: 10
+    # Apply helpful labels to Dependabot PRs
+    labels:
+      - dependencies
+      - frontend
+    # Group related updates to cut down on PR noise
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+      dev-dependencies:
+        dependency-type: development
+    # Optional: rebase PRs when conflicts occur
+    rebase-strategy: auto
